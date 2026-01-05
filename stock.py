@@ -99,7 +99,6 @@ def schedule_stock_price_updates(scheduler):
         changed = False
         for sym, info in list(data.items()):
             if 'official' not in info:
-                # 按用户要求，将已有股票标记为官方股票
                 data[sym]['official'] = True
                 changed = True
             if 'owner' not in info:
@@ -111,11 +110,11 @@ def schedule_stock_price_updates(scheduler):
         # 对所有股票在内存中计算更新，最后一次性写回文件，避免反复读写导致覆盖或并发问题
         for symbol, info in list(data.items()):
             base_change = random.uniform(-0.2, 0.2)  # -20% 到 +20%
-            # 如果是官方股票且价格低于10，则按价格低于10的程度增加权重储备
-            # 公式：bonus = (10 - price) * 0.1，当 price < 100 时生效
+            # 如果是官方股票且价格低于100，则按价格低于100的程度增加权重储备
+            # 公式：bonus = (100 - price) * 0.1，当 price < 100 时生效
             try:
                 if info.get('official') and float(info.get('price', 0)) < 100:
-                    bonus = (10 - float(info.get('price', 0))) * 0.1
+                    bonus = (100 - float(info.get('price', 0))) * 0.1
                     data[symbol]['weight'] = float(info.get('weight', 0) or 0.0) + bonus
                     # 更新本地 info 以使用新的权重
                     info = data[symbol]
