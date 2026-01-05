@@ -1,0 +1,9 @@
+{
+  "manifest_version": 1,
+  "name": "华尔街麦云",
+  "version": "1.0.0",
+  "description": "一个在麦麦的身体里赛博炒股的插件",
+  "author": {
+    "name": "abcatde"
+  }
+}
