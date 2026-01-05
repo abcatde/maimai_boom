@@ -40,7 +40,7 @@ class BoomDataManager:
 
         data[str(uid)] = {
             "registered_at": str(datetime.datetime.now()),
-            "gold": 10
+            "gold": 1000
         }
 
         with open(BoomDataManager.DATA_FILE, "w", encoding='utf-8') as f:

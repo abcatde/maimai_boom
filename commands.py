@@ -72,7 +72,7 @@ class CheckInCommand(BaseCommand):
             return False, "无法获取用户信息！", False
 
         if not BoomDataManager.read_id(uid):
-            await self.send_text(f"你是第一次使用签到功能，已为你注册！当前你有10金币。")
+            await self.send_text(f"你是第一次使用签到功能，已为你注册！当前你有1000金币。")
             BoomDataManager.register_id(uid)
             return False, f"你是第一次使用签到功能，已为你注册！", False
 
