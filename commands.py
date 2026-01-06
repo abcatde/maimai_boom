@@ -380,7 +380,9 @@ class HelpCommand(BaseCommand):
             "4. .购买<股票id> <数量>\n"
             "5. .卖出<股票id> <数量>\n"
             "6. .持仓 - 查看你当前持有的持仓\n"
-            "7. .历史价格 <股票id>"
+            "7. .历史价格 <股票id>\n"
+            "8. .开一局牌 -卡牌游戏帮助\n" 
+            "9. .金币宝藏 -宝藏游戏帮助"
         )
         await self.send_text(help_text)
         return True, "查看帮助信息成功！", False
