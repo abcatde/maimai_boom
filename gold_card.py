@@ -264,11 +264,11 @@ class GoldCardBase:
                 rooms.pop(code, None)
         return room["result"]
 
-class Gold_card_Help(GoldCardBase,BaseCommand):
+class GoldCardHelp(GoldCardBase,BaseCommand):
         command_name = "card_help"
         command_description = "卡牌帮助"
-        command_pattern = r".开一局牌$"
-        command_pattern = r".金币卡牌$"
+        command_pattern = r"^.开一局牌$"
+        command_pattern = r"^.金币卡牌$"
 
         async def execute(self) -> Tuple[bool, Optional[str], bool]:
             help_text = (
@@ -616,7 +616,7 @@ __all__ = [
     "DealCommand",
     "SettleCommand",
     "RaiseCommand",
-    "Gold_card_Help",
+    "GoldCardHelp",
 ]
 
 ''''

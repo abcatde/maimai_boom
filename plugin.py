@@ -11,7 +11,7 @@ from .gold_treasure import (
     GoldTreasureHelpCommand, BuryTreasureCommand, DigTreasureCommand, FastDigTreasureCommand, ShowLandCommand,
 )
 from .gold_card import (
-    CreateRoomCommand, JoinRoomCommand, DealCommand, SettleCommand, RaiseCommand,
+    CreateRoomCommand, JoinRoomCommand, DealCommand, SettleCommand, RaiseCommand,GoldCardHelp
 )
 from .scheduler import SimpleScheduler
 from . import stock
@@ -49,6 +49,7 @@ class BoomPlugin(BasePlugin):
             (DealCommand.get_command_info(), DealCommand),
             (RaiseCommand.get_command_info(), RaiseCommand),
             (SettleCommand.get_command_info(), SettleCommand),
+            (GoldCardHelp.get_command_info(),GoldCardHelp),
         ]
 
     def __init__(self, *args, **kwargs):
