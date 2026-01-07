@@ -1,0 +1,9 @@
+{
+  "manifest_version": 1,
+  "name": "麦尔街风云 maill_street_stories",
+  "version": "1.2.0",
+  "description": "一个在麦麦的身体里赛博炒股的插件",
+  "author": {
+    "name": "abcatde"
+  }
+}
