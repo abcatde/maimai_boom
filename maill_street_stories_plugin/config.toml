@@ -1,0 +1,15 @@
+# maill_street_stories_plugin - 自动生成的配置文件
+# 一个在麦麦的身体里赛博炒股的插件
+
+[plugin]
+
+# 插件名称
+name = "maill_street_stories_plugin"
+
+# 插件版本
+version = "1.2.0"
+
+# 是否启用插件
+enabled = true
+
+
