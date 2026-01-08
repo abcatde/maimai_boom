@@ -13,9 +13,9 @@ def is_user_registered(user_id: str) -> bool:
     """检查用户是否注册"""
     return str(user_id) in user_data.user_data
 
-def register_user(user_id: str, user_name: str, user_qq: int) -> None:
+def register_user(user_id: str, user_name: str) -> None:
     """注册新用户"""
-    user_data.register_user(user_id, user_name, user_qq)
+    user_data.register_user(user_id, user_name)
 
 def get_user_info(user_id: str) -> user_data.User:
     """获取用户信息"""

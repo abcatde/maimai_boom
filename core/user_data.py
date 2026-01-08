@@ -33,9 +33,8 @@ stock_list: 用户持有的股票列表
 
 
 class User:
-    def __init__(self, user_id,user_qq, user_name ,coins=0, last_sign_in=None, sign_day= int):
+    def __init__(self, user_id, user_name ,coins=0, last_sign_in=None, sign_day= int):
         self.user_id = user_id
-        self.qq_number = user_qq
         self.user_name = user_name
         self.coins = coins
         self.last_sign_in = last_sign_in
@@ -90,13 +89,13 @@ def _save_user_data_sync(file_path=None):
         json.dump(user_data, f, ensure_ascii=False, indent=4)
         logCore.log_write(f'用户数据保存到 {file_path}，当前用户数: {len(user_data)}')
 
-def register_user(user_id, user_name, user_qq):
+def register_user(user_id, user_name):
     """注册新用户（不设置初始金币和签到数据，由首次签到完成）"""
     global user_data
     if str(user_id) not in user_data:
         user_data[str(user_id)] = {
             'user_name': user_name,
-            'qq_number': user_qq,
+            'user_id': user_id,
             'coins': 0,
             'last_sign_in': None,
             'sign_day': 0,
@@ -148,9 +147,10 @@ def get_user_name_by_id(user_id):
 def get_user_by_id(user_id):
     """通过用户ID获取用户数据"""
     global user_data
-    logCore.log_write(f'get_user_by_id: 查询 user_id={user_id}, type={type(user_id)}', logCore.LogLevel.DEBUG)
-    logCore.log_write(f'get_user_by_id: user_data keys={list(user_data.keys())}', logCore.LogLevel.DEBUG)
+    logCore.log_write(f'[DEBUG] get_user_by_id: 查询 user_id={user_id}, type={type(user_id)}', logCore.LogLevel.DEBUG)
+    logCore.log_write(f'[DEBUG] get_user_by_id: user_data keys={list(user_data.keys())}', logCore.LogLevel.DEBUG)
     user_info = user_data.get(str(user_id))
+    logCore.log_write(f'[DEBUG] get_user_by_id: user_info={user_info}', logCore.LogLevel.DEBUG)
     if user_info:
         return User(
             user_id=user_id,
@@ -282,12 +282,3 @@ def get_artifact_upgrade_items(user_id):
     if user_info:
         return user_info.get('artifact_upgrade_items', 0)
     return 0
-
-# 根据id获取用户qq号
-def get_user_qq_by_id(user_id):
-    """通过用户ID获取用户QQ号"""
-    global user_data
-    user_info = user_data.get(str(user_id))
-    if user_info:
-        return user_info.get('qq_number')
-    return None

@@ -9,7 +9,7 @@ userCommands.py主要负责用户命令的处理
 '''
 
 from typing import Optional, Tuple
-from src.plugin_system.apis import person_api
+from src.plugin_system.apis import person_api, send_api
 from src.plugin_system.base.base_command import BaseCommand
 from . import userCore
 from . import logCore
@@ -29,7 +29,6 @@ class SignInCommand(BaseCommand):
         # 获取平台和用户ID
         platform = self.message.message_info.platform
         user_id = str(self.message.message_info.user_info.user_id)
-        user_qq = self.message.message_info.user_info.user_qq
         
         # 获取 person_id
         person_id = person_api.get_person_id(platform, user_id)
@@ -40,7 +39,8 @@ class SignInCommand(BaseCommand):
         
         # 检查用户是否注册，未注册则先注册
         if not userCore.is_user_registered(person_id):
-            userCore.register_user(person_id, user_name, user_qq)
+            userCore.register_user(person_id, user_name)
+            from src.plugin_system import chat_api
             logCore.log_write(f"新用户 {user_name} 注册成功，准备进行首次签到")
         
         # 检查今天是否已经签到
@@ -48,6 +48,10 @@ class SignInCommand(BaseCommand):
             await self.send_text(f"@{user_name} 你今天已经签到过了，明天再来吧！")
             return False, "今日已签到", False
         
+
+
+
+
         # 执行签到
         import random
         reward_coins = random.randint(10, 100)
