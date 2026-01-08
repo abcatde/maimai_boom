@@ -5,6 +5,8 @@ from src.plugin_system.base.config_types import ConfigField
 from .core import userCommands
 from .stock import stockCommands
 from .Artifact import artifact_comands
+from .MIniGame import TexasHoldemCommands
+from .MIniGame import gold_boom
 
 @register_plugin
 class MaillStreetStoriesPlugin(BasePlugin):
@@ -52,6 +54,15 @@ class MaillStreetStoriesPlugin(BasePlugin):
             (artifact_comands.ArtifactLockCommand.get_command_info(), artifact_comands.ArtifactLockCommand),
             (artifact_comands.ArtifactUnlockCommand.get_command_info(), artifact_comands.ArtifactUnlockCommand),
             (artifact_comands.ArtifactStorageCommand.get_command_info(), artifact_comands.ArtifactStorageCommand),
+            (artifact_comands.ArtifactShowCommand.get_command_info(), artifact_comands.ArtifactShowCommand),
+            (TexasHoldemCommands.TexasHoldemHelpCommand.get_command_info(), TexasHoldemCommands.TexasHoldemHelpCommand),
+            (TexasHoldemCommands.CreateRoomCommand.get_command_info(), TexasHoldemCommands.CreateRoomCommand),
+            (TexasHoldemCommands.JoinRoomCommand.get_command_info(), TexasHoldemCommands.JoinRoomCommand),
+            (TexasHoldemCommands.LeaveRoomCommand.get_command_info(), TexasHoldemCommands.LeaveRoomCommand),
+            (TexasHoldemCommands.BetCommand.get_command_info(), TexasHoldemCommands.BetCommand),
+            (TexasHoldemCommands.FoldCommand.get_command_info(), TexasHoldemCommands.FoldCommand),
+            (TexasHoldemCommands.NextRoundCommand.get_command_info(), TexasHoldemCommands.NextRoundCommand),
+            (gold_boom.GoldBoomCommand.get_command_info(), gold_boom.GoldBoomCommand),
 
         ]
     
