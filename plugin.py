@@ -1,3 +1,4 @@
+from encodings.punycode import T
 from typing import List, Tuple, Type
 
 from src.plugin_system import BasePlugin, register_plugin, ComponentInfo
@@ -59,9 +60,14 @@ class MaillStreetStoriesPlugin(BasePlugin):
             (TexasHoldemCommands.CreateRoomCommand.get_command_info(), TexasHoldemCommands.CreateRoomCommand),
             (TexasHoldemCommands.JoinRoomCommand.get_command_info(), TexasHoldemCommands.JoinRoomCommand),
             (TexasHoldemCommands.LeaveRoomCommand.get_command_info(), TexasHoldemCommands.LeaveRoomCommand),
+            (TexasHoldemCommands.StartGameCommand.get_command_info(), TexasHoldemCommands.StartGameCommand),
             (TexasHoldemCommands.BetCommand.get_command_info(), TexasHoldemCommands.BetCommand),
             (TexasHoldemCommands.FoldCommand.get_command_info(), TexasHoldemCommands.FoldCommand),
             (TexasHoldemCommands.NextRoundCommand.get_command_info(), TexasHoldemCommands.NextRoundCommand),
+            (TexasHoldemCommands.RaiseCommand.get_command_info(), TexasHoldemCommands.RaiseCommand),
+            (TexasHoldemCommands.CallCommand.get_command_info(), TexasHoldemCommands.CallCommand),
+            (TexasHoldemCommands.CheckCommand.get_command_info(), TexasHoldemCommands.CheckCommand),
+            (TexasHoldemCommands.ViewRoomCommand.get_command_info(), TexasHoldemCommands.ViewRoomCommand),
             (gold_boom.GoldBoomCommand.get_command_info(), gold_boom.GoldBoomCommand),
 
         ]
