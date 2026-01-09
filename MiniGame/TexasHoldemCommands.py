@@ -224,7 +224,13 @@ class StartGameCommand(BaseCommand):
                 logCore.log_write(f"[StartGameCommand] 检查玩家 {player.user_id} 是否为命令发起者 {user_id}，{player.user_id == user_id}")
                 if player.user_id == int(user_id):
                     if room.round_stage != "waiting":
-                        return False, "房间已在游戏中", False
+                        # 容错：若上一手已结束但状态未复位，则自动复位
+                        hands_cleared = all(len(p.hand) == 0 for p in room.players)
+                        no_pot = room.pot == 0
+                        if room.round_stage == "showdown" or (hands_cleared and no_pot):
+                            TexasHoldemCore.reset_hand_state(room)
+                        else:
+                            return False, "房间已在游戏中", False
                     if len(room.players) < 2:
                         await self.send_text("房间人数不足2人，无法开局。"); return False, "人数不足", False
                     TexasHoldemCore.start_new_hand(room)
