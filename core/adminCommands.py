@@ -4,8 +4,7 @@ adminCommands.py管理员命令类
 '''
 
 
-from logging import Logger
-from re import L
+
 from src.plugin_system.base.base_command import BaseCommand
 from ..core import logCore
 
@@ -36,6 +35,6 @@ class SaveStockDataCommand(BaseCommand):
         user_data.save_user_data()
         stock_data.save_stock_data()
         await self.send_text("数据保存成功。")
-        logCore.log_write("管理员保存数据命令执行成功。",Logger.debug)
+        logCore.log_write("管理员保存数据命令执行成功。")
         return True, "数据保存成功", False
 
