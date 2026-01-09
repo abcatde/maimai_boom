@@ -158,14 +158,30 @@ class JoinRoomCommand(BaseCommand):
         if user.coins < chips_needed:
             await self.send_text(f"金币不足，加入本房间需 {chips_needed} 金币（倍率{rate}，初始筹码{room.initial_chips}）。")
             return False, "金币不足", False
-        userCore.update_coins_to_user(person_id, -chips_needed)
-        player = TexasHoldemCore.Player(int(user_id), username, room.initial_chips)
-        if not TexasHoldemCore.join_room(room, player):
+
+        # 先检查座位，再扣金币，防止满员时白扣金币
+        if len(room.players) >= room.max_players:
             await self.send_text(f"房间 {room_id} 已满，无法加入。")
-            # 返还金币
-            userCore.update_coins_to_user(person_id, chips_needed)
             return False, f"房间 {room_id} 已满", False
-        await self.send_text(f"--------------------\n{username} 成功加入房间 {room_id}！\n当前房间人数：{len(room.players)}\n已自动花费{chips_needed*rate} 金币筹码 {chips_needed}\n--------------------")
+
+        # 扣金币并确保失败时返还
+        userCore.update_coins_to_user(person_id, -chips_needed)
+        try:
+            player = TexasHoldemCore.Player(int(user_id), username, room.initial_chips)
+            if not TexasHoldemCore.join_room(room, player):
+                # 理论上不会走到这里，兜底返还
+                userCore.update_coins_to_user(person_id, chips_needed)
+                await self.send_text(f"房间 {room_id} 已满，无法加入。")
+                return False, f"房间 {room_id} 已满", False
+        except Exception as exc:  # 防止意外异常导致金币丢失
+            userCore.update_coins_to_user(person_id, chips_needed)
+            logCore.log_write(f"加入房间异常，已返还金币: {exc}")
+            await self.send_text("加入房间失败，金币已返还，请稍后重试。")
+            return False, "加入房间异常", False
+
+        await self.send_text(
+            f"--------------------\n{username} 成功加入房间 {room_id}！\n当前房间人数：{len(room.players)}\n已花费 {chips_needed} 金币获取筹码 {room.initial_chips}\n--------------------"
+        )
         # 自动开局：仅当房间人数达到最大人数时自动开局（最大人数为room.max_players）
         if hasattr(room, 'max_players') and len(room.players) >= room.max_players and room.round_stage == "waiting":
             TexasHoldemCore.start_new_hand(room)
