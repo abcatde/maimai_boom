@@ -1,6 +1,7 @@
 from encodings.punycode import T
 from typing import List, Tuple, Type
 
+import adminCommands
 from src.plugin_system import BasePlugin, register_plugin, ComponentInfo
 from src.plugin_system.base.config_types import ConfigField
 from .core import userCommands
@@ -27,7 +28,6 @@ class MaillStreetStoriesPlugin(BasePlugin):
         from .core import user_data
         from .core import timeCore
         from .stock import stock_data
-        from .stock import stockPriceControl  # 导入价格控制模块以注册定时任务
         
         # 创建并启动任务调度器
         self.scheduler = timeCore.TaskScheduler()
@@ -41,6 +41,7 @@ class MaillStreetStoriesPlugin(BasePlugin):
         self.on_plugin_load()#初始化数据
         return [
             # 在这里注册你的命令类
+            (adminCommands.SaveStockDataCommand.get_command_info(), adminCommands.SaveStockDataCommand),
             (userCommands.SignInCommand.get_command_info(), userCommands.SignInCommand),        
             (userCommands.UserInfoCommand.get_command_info(), userCommands.UserInfoCommand),    
             (userCommands.HelpCommand.get_command_info(), userCommands.HelpCommand),
@@ -72,7 +73,10 @@ class MaillStreetStoriesPlugin(BasePlugin):
             (gold_boom.GoldBoomCommand.get_command_info(), gold_boom.GoldBoomCommand),
 
         ]
-    
+    config_section_descriptions = {
+        "plugin": "插件启用配置",
+        "admin": "管理员配置"
+    }
     
         # 配置Schema定义
     config_schema: dict = {
@@ -82,8 +86,7 @@ class MaillStreetStoriesPlugin(BasePlugin):
             "enabled": ConfigField(type=bool, default=True, description="是否启用插件"),
         },
         #参数配置
-        "settings": {
-            "initial_coins": ConfigField(type=int, default=1000, description="新用户初始金币数量"),
-            
+        "admin": {
+            "admin_password": ConfigField(type=str, default="admin123", description="管理员密钥"),
         },
     }
