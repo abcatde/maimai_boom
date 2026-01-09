@@ -372,3 +372,9 @@ class TaskScheduler:
             
             return func
         return decorator
+
+
+# 兼容旧调用：直接暴露装饰器函数
+def schedule_interval(*, minutes: int = 0, seconds: int = 0, hours: int = 0):
+    """兼容旧版接口，等同于 TaskScheduler.interval_task"""
+    return TaskScheduler.interval_task(minutes=minutes, seconds=seconds, hours=hours)
