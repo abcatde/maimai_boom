@@ -41,7 +41,7 @@ class MaillStreetStoriesPlugin(BasePlugin):
         self.on_plugin_load()#初始化数据
         return [
             # 在这里注册你的命令类
-            (adminCommands.SaveStockDataCommand.get_command_info(), adminCommands.SaveStockDataCommand),
+            (adminCommands.SaveDataCommand.get_command_info(), adminCommands.SaveDataCommand),
             (adminCommands.AdminHelpCommand.get_command_info(), adminCommands.AdminHelpCommand),
             (adminCommands.GenerateRedeemCodeCommand.get_command_info(), adminCommands.GenerateRedeemCodeCommand),
             (adminCommands.RedeemCodeCommand.get_command_info(), adminCommands.RedeemCodeCommand),
