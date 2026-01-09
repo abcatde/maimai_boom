@@ -83,6 +83,7 @@ class ArtifactDrawCommand(BaseCommand):
         result_texts = []
         for _ in range(quantity):
             if user.coins < artifactCore.ARTIFACT_LOTTERY_COST:
+                result_texts.append("当前金币金币不足了，无法继续抽取。")
                 break
             success, result_text = artifactCore.draw_artifact_lottery(person_id, user.coins)
             result_texts.append(result_text)
@@ -92,7 +93,7 @@ class ArtifactDrawCommand(BaseCommand):
                 # 保存圣遗物数据到文件  
                 artifactCore.save_user_artifact_data(person_id)
         
-        await self.send_text("\n".join(result_texts))
+        await self.send_text("\n".join(result_texts) + f"\n当前拥有金币{user.coins}个")
         return True, "抽取成功", True
     
 
