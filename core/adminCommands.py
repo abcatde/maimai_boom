@@ -22,7 +22,7 @@ redeem_code_list = {}
 class AdminHelpCommand(BaseCommand):
     command_name = "Admin_Help"
     command_description = "管理员帮助"
-    command_pattern = r"^.admin help (?P<adminPassworld>\d+)$"
+    command_pattern = r"^.admin_help (?P<adminPassworld>\d+)$"
     
     async def execute(self) -> tuple[bool, str, bool]:
         """处理管理员帮助命令"""
@@ -42,8 +42,9 @@ class AdminHelpCommand(BaseCommand):
         
         help_text = (
             "管理员命令列表：\n"
-            ".admin save_data <adminPassworld> - 保存用户和股票数据\n"
-            ".admin generate_redeem_code <adminPassworld> <amount> <uses> - 生成指定金额和使用次数的兑换码\n"
+            ".admin_save_data <adminPassworld> - 保存用户和股票数据\n"
+            ".admin_generate_redeem_code <adminPassworld> <amount> <uses> - 生成指定金额和使用次数的兑换码\n"
+
         )
         await self.send_text(help_text)
         return True, "管理员帮助显示成功", False
@@ -52,7 +53,7 @@ class AdminHelpCommand(BaseCommand):
 class SaveStockDataCommand(BaseCommand):
     command_name = "Save_data"
     command_description = "保存数据"
-    command_pattern = r"^.admin save_data (?P<adminPassworld>\d+)$"
+    command_pattern = r"^.admin_save_data (?P<adminPassworld>\d+)$"
     async def execute(self) -> tuple[bool, str, bool]:
         """处理保存数据的管理员命令"""
        # 限定只能在私聊中进行
@@ -81,7 +82,7 @@ class SaveStockDataCommand(BaseCommand):
 class GenerateRedeemCodeCommand(BaseCommand):
     command_name = "Generate_Redeem_Code"
     command_description = "生成兑换码"
-    command_pattern = r"^.admin generate_redeem_code (?P<adminPassworld>\d+) (?P<amount>\d+) (?P<uses>\d+)$"
+    command_pattern = r"^.admin_generate_redeem_code (?P<adminPassworld>\d+) (?P<amount>\d+) (?P<uses>\d+)$"
     
     async def execute(self) -> tuple[bool, str, bool]:
         """处理生成兑换码的管理员命令"""
