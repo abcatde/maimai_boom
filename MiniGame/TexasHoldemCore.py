@@ -29,6 +29,7 @@ class Player:
         self.has_folded: bool = False
         self.is_all_in: bool = False
         self.round_bet: int = 0
+        self.total_bet: int = 0  # 本手牌累计投入（用于边池）
         self.is_dealer: bool = False
         self.is_small_blind: bool = False
         self.is_big_blind: bool = False
@@ -51,8 +52,8 @@ class Room:
         self.max_players = max_players
         self.initial_chips = initial_chips
         self.rate = rate
-        self.small_blind = 10
-        self.big_blind = 20
+        self.small_blind = 10 * rate  # 盲注随倍率缩放，保持筹码成本比例
+        self.big_blind = 20 * rate
         self.last_raiser_index: Optional[int] = None
         self.last_bet_amount = 0
         random.shuffle(self.deck)
@@ -72,6 +73,7 @@ class Room:
             p.hand = []
             p.current_bet = 0
             p.round_bet = 0
+            p.total_bet = 0
             p.has_folded = False
             p.is_all_in = False
             p.is_dealer = False
@@ -106,16 +108,26 @@ def _reset_street_bets(room: Room):
         p.has_acted_this_round = False
 
 def _first_to_act_index(room: Room, stage: str) -> Optional[int]:
+    """返回本轮第一个可行动玩家的索引，跳过已弃牌/全下/无筹码玩家。"""
     n = len(room.players)
     if n == 0:
         return None
     dealer = room.dealer_index % n
+    start = None
     if stage == "preflop":
         if n == 2:
-            return dealer  # 头对头局：庄家（小盲）先行动
-        return (dealer + 3) % n  # 大盲左侧（UTG）
-    # 翻牌圈及之后，小盲左侧先行动
-    return (dealer + 1) % n
+            start = dealer  # 头对头局：庄家（小盲）先行动
+        else:
+            start = (dealer + 3) % n  # 大盲左侧（UTG）
+    else:
+        start = (dealer + 1) % n  # 翻牌圈及之后，小盲左侧先行动
+
+    for i in range(n):
+        idx = (start + i) % n
+        p = room.players[idx]
+        if not p.has_folded and not p.is_all_in and p.chips > 0:
+            return idx
+    return None
 
 def _is_betting_round_settled(room: Room) -> bool:
     actionable = _actionable_players(room)
@@ -152,6 +164,29 @@ def _collect_blinds(room: Room):
     place_bet(room, bb_player.user_id, bb_amount, mark_action=False)
     room.current_bet = max(sb_amount, bb_amount)
     room.last_raiser_index = bb_idx if bb_amount >= sb_amount else sb_idx
+
+
+def reset_hand_state(room: Room):
+    """清理一手牌后的状态，回到等待开局阶段"""
+    room.pot = 0
+    room.community_cards = []
+    room.current_bet = 0
+    room.deck = room.create_deck()
+    random.shuffle(room.deck)
+    room.round_stage = "waiting"
+    room.current_player_index = None
+    room.last_raiser_index = None
+    for p in room.players:
+        p.hand = []
+        p.current_bet = 0
+        p.round_bet = 0
+        p.total_bet = 0
+        p.has_folded = False
+        p.is_all_in = False
+        p.has_acted_this_round = False
+        p.is_dealer = False
+        p.is_small_blind = False
+        p.is_big_blind = False
 
 
 #向用户发起私聊消息
@@ -325,12 +360,15 @@ def place_bet(room: Room, user_id: int, amount: int, mark_action: bool = True) -
         if player.user_id == user_id:
             if amount > player.chips:
                 return False
+            prev_room_bet = room.current_bet
             player.chips -= amount
             player.current_bet += amount
             player.round_bet += amount
+            player.total_bet += amount
             room.pot += amount
-            if amount > room.current_bet:
-                room.current_bet = amount
+            room.current_bet = max(room.current_bet, player.current_bet)
+            if mark_action and player.current_bet > prev_room_bet:
+                room.last_raiser_index = room.players.index(player)
             if player.chips == 0:
                 player.is_all_in = True
             if mark_action:
@@ -345,6 +383,9 @@ def fold(room: Room, user_id: int) -> bool:
         if player.user_id == user_id:
             player.has_folded = True
             player.has_acted_this_round = True
+            # 若弃牌者是当前最大下注来源，回落当前下注基准，避免无人跟注卡轮次
+            remaining = [p.current_bet for p in room.players if not p.has_folded]
+            room.current_bet = max(remaining) if remaining else 0
             return True
     return False
 
@@ -355,111 +396,118 @@ def mark_player_acted(room: Room, user_id: int) -> None:
         player.has_acted_this_round = True
 
 
-# 结算（仅主干，牌型比较需补充）
-def settle_game(room: Room):
-    # 评比所有未弃牌玩家的牌型，找出最大牌型
+def _hand_rank(cards):
     from collections import Counter
-    def hand_rank(cards):
-        # 输入7张牌，返回(牌型等级, 主要点数, kicker...)
-        # 牌型等级：9皇家同花顺 8同花顺 7四条 6葫芦 5同花 4顺子 3三条 2两对 1一对 0高牌
-        # 牌面映射
-        rank_map = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14}
-        suits = [c[-1] for c in cards]
-        ranks = [c[:-1] for c in cards]
-        rank_nums = sorted([rank_map[r] for r in ranks], reverse=True)
-        # 统计
-        count = Counter(rank_nums)
-        counts = sorted(count.items(), key=lambda x: (-x[1], -x[0]))
-        is_flush = any(suits.count(s) >= 5 for s in 'HDCS')
-        flush_suit = next((s for s in 'HDCS' if suits.count(s) >= 5), None)
-        flush_cards = [rank_map[c[:-1]] for c in cards if c[-1]==flush_suit] if flush_suit else []
-        # 顺子
-        def get_straight(nums):
-            nums = sorted(set(nums), reverse=True)
-            for i in range(len(nums)-4):
-                window = nums[i:i+5]
-                if window[0]-window[4]==4:
-                    return window[0]
-            # 特判A5432
-            if set([14,5,4,3,2]).issubset(nums):
-                return 5
-            return None
-        straight_high = get_straight(rank_nums)
-        flush_straight_high = get_straight(flush_cards) if is_flush else None
-        # 皇家同花顺
-        if is_flush and flush_straight_high==14:
-            return (9, 14)
-        # 同花顺
-        if is_flush and flush_straight_high:
-            return (8, flush_straight_high)
-        # 四条
-        if counts[0][1]==4:
-            kicker = max([x for x in rank_nums if x!=counts[0][0]])
-            return (7, counts[0][0], kicker)
-        # 葫芦
-        if counts[0][1]==3 and counts[1][1]>=2:
-            return (6, counts[0][0], counts[1][0])
-        # 同花
-        if is_flush:
-            top5 = sorted(flush_cards, reverse=True)[:5]
-            return (5, *top5)
-        # 顺子
-        if straight_high:
-            return (4, straight_high)
-        # 三条
-        if counts[0][1]==3:
-            kickers = [x for x in rank_nums if x!=counts[0][0]][:2]
-            return (3, counts[0][0], *kickers)
-        # 两对
-        if counts[0][1]==2 and counts[1][1]==2:
-            kicker = max([x for x in rank_nums if x!=counts[0][0] and x!=counts[1][0]])
-            return (2, counts[0][0], counts[1][0], kicker)
-        # 一对
-        if counts[0][1]==2:
-            kickers = [x for x in rank_nums if x!=counts[0][0]][:3]
-            return (1, counts[0][0], *kickers)
-        # 高牌
-        return (0, *rank_nums[:5])
+    rank_map = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14}
+    suits = [c[-1] for c in cards]
+    ranks = [c[:-1] for c in cards]
+    rank_nums = sorted([rank_map[r] for r in ranks], reverse=True)
+    count = Counter(rank_nums)
+    counts = sorted(count.items(), key=lambda x: (-x[1], -x[0]))
+    is_flush = any(suits.count(s) >= 5 for s in 'HDCS')
+    flush_suit = next((s for s in 'HDCS' if suits.count(s) >= 5), None)
+    flush_cards = [rank_map[c[:-1]] for c in cards if c[-1]==flush_suit] if flush_suit else []
 
-    def hand_name(rank_tuple):
-        names = ["高牌","一对","两对","三条","顺子","同花","葫芦","四条","同花顺","皇家同花顺"]
-        return names[rank_tuple[0]]
+    def get_straight(nums):
+        nums = sorted(set(nums), reverse=True)
+        for i in range(len(nums)-4):
+            window = nums[i:i+5]
+            if window[0]-window[4]==4:
+                return window[0]
+        if set([14,5,4,3,2]).issubset(nums):
+            return 5
+        return None
 
-    active_players = [p for p in room.players if not p.has_folded]
-    if not active_players:
+    straight_high = get_straight(rank_nums)
+    flush_straight_high = get_straight(flush_cards) if is_flush else None
+    if is_flush and flush_straight_high==14:
+        return (9, 14)
+    if is_flush and flush_straight_high:
+        return (8, flush_straight_high)
+    if counts[0][1]==4:
+        kicker = max([x for x in rank_nums if x!=counts[0][0]])
+        return (7, counts[0][0], kicker)
+    if counts[0][1]==3 and counts[1][1]>=2:
+        return (6, counts[0][0], counts[1][0])
+    if is_flush:
+        top5 = sorted(flush_cards, reverse=True)[:5]
+        return (5, *top5)
+    if straight_high:
+        return (4, straight_high)
+    if counts[0][1]==3:
+        kickers = [x for x in rank_nums if x!=counts[0][0]][:2]
+        return (3, counts[0][0], *kickers)
+    if counts[0][1]==2 and counts[1][1]==2:
+        kicker = max([x for x in rank_nums if x!=counts[0][0] and x!=counts[1][0]])
+        return (2, counts[0][0], counts[1][0], kicker)
+    if counts[0][1]==2:
+        kickers = [x for x in rank_nums if x!=counts[0][0]][:3]
+        return (1, counts[0][0], *kickers)
+    return (0, *rank_nums[:5])
+
+
+def _hand_name(rank_tuple):
+    names = ["高牌","一对","两对","三条","顺子","同花","葫芦","四条","同花顺","皇家同花顺"]
+    return names[rank_tuple[0]]
+
+
+def _best_five_for_player(player: Player, community_cards: List[str]):
+    from itertools import combinations
+    all_cards = player.hand + community_cards
+    best5 = None
+    bestrank = None
+    for comb in combinations(all_cards,5):
+        r = _hand_rank(list(comb))
+        if bestrank is None or r > bestrank:
+            bestrank = r
+            best5 = list(comb)
+    return bestrank, best5
+
+
+def settle_game(room: Room):
+    """摊牌结算，支持边池，包含已弃牌玩家投入的筹码。"""
+    contenders = [p for p in room.players if not p.has_folded]
+    if not contenders:
         return None
-    best = None
-    best_players = []
-    best_hand_cards = None
-    for p in active_players:
-        # 7张牌选5张最大
-        from itertools import combinations
-        all_cards = p.hand + room.community_cards
-        best5 = None
-        bestrank = None
-        for comb in combinations(all_cards,5):
-            r = hand_rank(list(comb))
-            if bestrank is None or r > bestrank:
-                bestrank = r
-                best5 = list(comb)
-        if best is None or bestrank > best:
-            best = bestrank
-            best_players = [(p, best5)]
-        elif bestrank == best:
-            best_players.append((p, best5))
-    if not best_players:
+
+    # 使用所有投入过筹码的玩家构建层级，以防弃牌筹码被漏掉
+    contrib = {p: p.total_bet for p in room.players if p.total_bet > 0}
+    if not contrib:
         return None
-    # 平分底池给并列胜者
-    total_pot = room.pot
-    split = total_pot // len(best_players)
-    remainder = total_pot % len(best_players)
-    for idx, (player, _) in enumerate(best_players):
-        gain = split + (1 if idx < remainder else 0)
-        player.chips += gain
+    levels = sorted(set(contrib.values()))
+    pots = []  # (amount, participants)
+    prev = 0
+    for level in levels:
+        eligible_all = [p for p, v in contrib.items() if v >= level]
+        participants = [p for p in eligible_all if not p.has_folded]
+        if not participants:
+            prev = level
+            continue
+        slice_amount = (level - prev) * len(eligible_all)
+        if slice_amount > 0:
+            pots.append((slice_amount, participants))
+        prev = level
+
+    results = []
+    for amount, participants in pots:
+        ranked = []
+        for p in participants:
+            rank, best5 = _best_five_for_player(p, room.community_cards)
+            ranked.append((rank, p, best5))
+        ranked.sort(key=lambda x: x[0], reverse=True)
+        winners = [r for r in ranked if r[0] == ranked[0][0]]
+        split = amount // len(winners)
+        remainder = amount % len(winners)
+        for idx, (_, player, best5) in enumerate(winners):
+            gain = split + (1 if idx < remainder else 0)
+            player.chips += gain
+        show_rank, show_player, show_hand = winners[0]
+        tied_names = [w[1].username for w in winners]
+        results.append((show_player, show_hand, _hand_name(show_rank), amount, tied_names))
+
     room.pot = 0
-    # 返回第一个胜者的信息作为显示
-    show_player, show_hand = best_players[0]
-    return show_player, show_hand, hand_name(best), total_pot
+
+    return results if results else None
 
 # 更新筹码
 def update_chips(player: Player, amount: int):

@@ -305,12 +305,19 @@ class LeaveRoomCommand(BaseCommand):
         for room_id, room in rooms.items():
             for player in room.players:
                 if player.user_id == int(user_id):
+                    auto_fold_msg = ""
+                    if room.round_stage not in ("waiting", "showdown"):
+                        TexasHoldemCore.fold(room, int(user_id))
+                        auto_fold_msg = "（牌局中已自动为你弃牌，已投入的筹码不予退还）"
                     # 返还剩余筹码对应金币
                     rate = getattr(room, 'rate', 1)
                     if player.chips > 0:
                         gold_back = player.chips * rate
                         userCore.update_coins_to_user(person_id, gold_back)
-                        await self.send_text(f"返还剩余筹码：{player.chips}，已返还 {gold_back} 金币。")
+                        await self.send_text(f"返还剩余筹码：{player.chips}，已返还 {gold_back} 金币。{auto_fold_msg}")
+                    else:
+                        if auto_fold_msg:
+                            await self.send_text(f"{auto_fold_msg}")
                     TexasHoldemCore.leave_room(room, int(user_id))
                     await self.send_text(f"{player.username} 已离开房间 {room_id}。")
                     return True, f"{player.username} 离开房间 {room_id} 成功", True
@@ -338,7 +345,11 @@ class NextRoundCommand(BaseCommand):
             # 单人存活直接获胜
             winner = TexasHoldemCore._check_single_player_win(room)
             if winner:
-                await self.send_text(f"{_mention_next(room)} 房间{room.room_id} 只剩 {winner.username}，底池 {pot_snapshot} 筹码直接获胜！")
+                await self.send_text(
+                    f"{_mention_next(room)} 房间{room.room_id} 只剩 {winner.username}，底池 {pot_snapshot} 筹码直接获胜！\n"
+                    "牌局已重置，使用 .开局 可开始下一手。"
+                )
+                TexasHoldemCore.reset_hand_state(room)
                 return True, "单人存活自动结算", True
 
             if not TexasHoldemCore._is_betting_round_settled(room):
@@ -351,16 +362,30 @@ class NextRoundCommand(BaseCommand):
                 return False, "无法推进", False
 
             if room.round_stage == "showdown":
-                if result and isinstance(result, tuple) and len(result) >= 3:
-                    winner, best_hand, hand_name = result[:3]
-                    pot_won = result[3] if len(result) >= 4 else pot_snapshot
-                    hand_str = ', '.join(best_hand) if best_hand else '未知'
-                    await self.send_text(
-                        f"{_mention_next(room)} 本局胜者：{winner.username}\n"
-                        f"手牌：{_pretty_cards(best_hand)}\n"
-                        f"牌型：{hand_name}\n"
-                        f"获得底池 {pot_won} 筹码"
-                    )
+                if result:
+                    if isinstance(result, list):
+                        lines = []
+                        for idx, item in enumerate(result, start=1):
+                            winner, best_hand, hand_name, pot_won = item[:4]
+                            tied_names = item[4] if len(item) >= 5 else [winner.username]
+                            share = pot_won // len(tied_names)
+                            remainder = pot_won % len(tied_names)
+                            remainder_hint = f"，其中前 {remainder} 人多得 1" if remainder else ""
+                            split_hint = "平分" if len(tied_names) > 1 else "获得"
+                            lines.append(
+                                f"池{idx}: {', '.join(tied_names)} {split_hint} {pot_won} 筹码（每人 {share}{remainder_hint}），"
+                                f"牌型 {hand_name}，手牌 {_pretty_cards(best_hand)}"
+                            )
+                        await self.send_text("\n".join(lines))
+                    else:
+                        winner, best_hand, hand_name = result[:3]
+                        pot_won = result[3] if len(result) >= 4 else pot_snapshot
+                        await self.send_text(
+                            f"{_mention_next(room)} 本局胜者：{winner.username}\n"
+                            f"手牌：{_pretty_cards(best_hand)}\n"
+                            f"牌型：{hand_name}\n"
+                            f"获得底池 {pot_won} 筹码"
+                        )
                 else:
                     await self.send_text(f"{_mention_next(room)} 无人获胜。")
                 # 补充筹码
@@ -390,6 +415,8 @@ class NextRoundCommand(BaseCommand):
                             refill_lines.append(f"[系统] 玩家 {p.username} 金币不足，无法补充筹码。当前筹码：{p.chips}")
                 if refill_lines:
                     await self.send_text("\n".join(refill_lines))
+                TexasHoldemCore.reset_hand_state(room)
+                await self.send_text("牌局已重置至等待状态，使用 .开局 可开始下一手。")
                 return True, "摊牌结算完成", True
             await self.send_text(f"{_mention_next(room)} 房间{room.room_id} 进入阶段：{room.round_stage}，公共牌：{_pretty_cards(room.community_cards)}\n当前底池：{room.pot}")
             return True, f"房间{room.room_id} 阶段推进", True
@@ -517,6 +544,8 @@ class FoldCommand(BaseCommand):
         winner = TexasHoldemCore._check_single_player_win(room)
         if winner:
             message_lines.append(f"仅剩 {winner.username}，直接赢得底池 {pot_snapshot} 筹码。")
+            TexasHoldemCore.reset_hand_state(room)
+            message_lines.append("牌局已重置，使用 .开局 可开始下一手。")
         else:
             TexasHoldemCore.move_to_next_player(room)
         next_player = room.players[room.current_player_index] if room.current_player_index is not None else None
